@@ -1,55 +1,55 @@
 # VPhysics-Box3D
 
-Vox3D is a replacement for Source's VPhysics (originally IVP/Havok) built on
-[Box3D](https://github.com/erincatto/box3d). It mirrors the structure of
-[VPhysics-Jolt](https://github.com/Joshua-Ashton/VPhysics-Jolt) (Volt).
+Source VPhysics (IVP/Havok) reimplemented on [Box3D](https://github.com/erincatto/box3d). Modelled on [VPhysics-Jolt](https://github.com/Joshua-Ashton/VPhysics-Jolt) (Volt).
 
-This is a work in progress. Rigid-body simulation, collision, materials, traces, and the
-grab/shadow controllers work in-engine. Constraints, ragdoll joints, vehicles, fluids, and
-save/restore are not implemented yet.
+Work in progress!
 
 ## Status
 
-| Feature | Implemented |
-|:--|:--:|
-| Rigid bodies (fall, collide, rest) | yes |
-| Collision geometry from `.phy` (convex hulls) and world | yes |
-| Collision + touch callbacks, impact sounds | yes |
-| Surface materials (friction, restitution, density) | yes |
-| Traces against a collide (bullets, `+use`, movement) | yes |
-| Shadow controllers (doors, `+use` pickup, physgun hold) | yes |
-| Motion controllers (gravity gun) | yes |
-| Player controller | no |
-| Constraints (ragdoll, weld, hinge, ball-socket, sliding, pulley, length) | no |
-| Wheeled / raycast vehicles | no |
-| Fluids / buoyancy | no |
-| Save / restore | no |
-
-Traces cover convex hulls only; polysoup (concave) collision meshes are not traced yet.
+| Feature | Volt | Vox3D |
+|:--|:--:|:--:|
+| Constraints (except pulleys) | ✔️ | ❌ |
+| Pulleys | ✔️ | ❌ |
+| Breakable constraints | ❌ | ❌ |
+| Motion controllers | ✔️ | ✔️ |
+| Constraint motors | ✔️ | ❌ |
+| Ragdolls | ✔️ | ❌ |
+| Triggers | ✔️ | ❌ |
+| Object touch callbacks | ✔️ | ✔️ |
+| Prop damage / breaking | ✔️ | ✔️ |
+| Fluid events | ✔️ | ❌ |
+| Prop splashing effects | ✔️ | ❌ |
+| Wheeled vehicles | ✔️ | ❌ |
+| Raycast vehicles (airboat) | ❌ | ❌ |
+| Shadow controllers (NPCs, doors) | ✔️ | ✔️ |
+| Save / restore | ✔️ | ❌ |
+| Portal support | ✔️ | ❌ |
+| Per-object no-collide callbacks | ✔️ | ❌ |
+| Crash-resistant solver | ✔️ | ✔️ |
+| Thousands of objects without lag | ✔️ | ✔️ |
+| Multithreaded | ✔️ | ✔️ |
+| Player controller | ✔️ | ✔️ |
 
 ## Platforms
 
-| Target | Builds | Tested in-engine |
+> [!NOTE]
+> These are Windows builds. Linux and macOS are unknown as of now.
+
+| Branches | Builds | Tested |
 |:--|:--:|:--:|
-| Source SDK 2013 SP/MP (x86) | yes | no |
-| Alien Swarm (x86) | yes | no |
-| Garry's Mod (x86) | yes | no |
-| Source SDK 2013 (x64) | yes | no |
-| Garry's Mod (x64) | yes | yes |
+| SDK 2013 SP/MP x86 | ✔️ | |
+| SDK 2013 MP x64 | ✔️ | |
+| Alien Swarm x86 | ✔️ | |
+| Garry's Mod x86 | ✔️ | |
+| Garry's Mod x64 | ✔️ | ✔️ |
 
-Garry's Mod uses the CS:GO VPhysics interface rather than the public SDK's; building for it
-needs headers that aren't in this repo. See [build.md](build.md).
-
-## Building
-
-See [build.md](build.md).
+To build, see: [build.md](build.md)
 
 ## Credits
 
-- [Box3D](https://github.com/erincatto/box3d) by Erin Catto
-- Structure, conventions, and the IVP `.phy` / shadow-control logic follow
-  [VPhysics-Jolt](https://github.com/Joshua-Ashton/VPhysics-Jolt) by Joshua Ashton and Josh Dowell
+* [Box3D](https://github.com/erincatto/box3d) by Erin Catto
+* [Volt](https://github.com/Joshua-Ashton/VPhysics-Jolt) by Joshua Ashton and Josh Dowell
 
 ## License
 
-MIT! See [LICENSE](LICENSE). Box3D and any Source SDK code retain their own licenses.
+MIT, see [LICENSE](LICENSE). Box3D and Source SDK code retain their respective licences.

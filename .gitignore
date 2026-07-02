@@ -1,32 +1,60 @@
-# VPC generated project/solution files
-*.sln
-*.suo
-*.vcxproj
-*.vcxproj.*
-*.mak
-*.vpc_crc
+# Multi-platform
 *.vpc_cache
+*.vpc_crc
 *.sentinel
-*.veanputdata
-_vpc_/
+.vscode
+.cache
 
-# Build intermediates / outputs
-[Dd]ebug/
-[Rr]elease/
-Debug_*/
-Release_*/
-[Bb]in/
-[Oo]bj/
+# Windows Stuff
+*.vcxproj
+*.sln
+*.filters
+.vs
+enc_temp_folder/
+*.enc
+*.suo
+*.user
+*.FileListAbsolute.txt
+*.sln.docstates
 *.obj
-*.lib
-*.dll
-*.pdb
-*.ilk
+*.pch
+*.tlog
+*.log
+*.scc
 *.exp
+*.ilk
+*.lastbuildstate
+*.sdf
+*.opensdf
 *.idb
+*.vcxproj.filters
+*.pdb
+*.recipe
+*.iobj
+*.ipdb
+*.res
+*.aps
+UpgradeLog.htm
+generated_code_*
+*.dll
+*.exe
+*.lib
+*.ixx.ifc.dt.module.json.command
+*.ixx.ifc.dt.module.json
+*.ixx.ifc.dt.d.json
 
-# Misc
-.vs/
 
-# Built module output (ship via GitHub Releases, not the source tree)
-dist/
+# Linux Stuff
+*.mak
+*.o
+*.a
+*.P
+*.map
+*.so
+*.so.dbg
+manifest.txt
+obj*/
+
+# Mac Stuff
+*.xcodeproj/
+

@@ -33,7 +33,7 @@ namespace
 			shapeDef.density = pSurface->physics.density;	// kg/m^3 in both, geometry is in metres
 	}
 
-	// IVP combines both surfaces' coefficients as a PRODUCT (ivp_material.cxx); Box3D defaults to
+	// IVP combines both surfaces' coefficients as a product; Box3D defaults to
 	// max(restitution) and sqrt(friction), which makes props far too bouncy and slightly too grippy.
 	float Box3DFrictionCombine( float a, uint64_t, float b, uint64_t )		{ return a * b; }
 	float Box3DRestitutionCombine( float a, uint64_t, float b, uint64_t )	{ return a * b; }
@@ -51,6 +51,8 @@ Box3DPhysicsEnvironment::Box3DPhysicsEnvironment()
 	// Box3D's default 3 m/s penetration push-out pops overlapping bodies apart hard enough to fling
 	// the player off props; IVP separates penetration gently.
 	def.contactSpeed = SourceToBox::Distance( 20.0f );
+	// workerCount > 1 with no task callbacks runs Box3D's built-in scheduler; physical cores only, HT hurts.
+	def.workerCount = (uint32_t)clamp( (int)GetCPUInformation()->m_nPhysicalProcessors, 1, B3_MAX_WORKERS );
 	m_WorldId = b3CreateWorld( &def );
 
 	// Match IVP's product combine rule for both coefficients (not Box3D's max/sqrt defaults).
