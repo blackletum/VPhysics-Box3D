@@ -54,6 +54,35 @@ private:
 	std::function< b3JointId() > m_BuildFn;
 };
 
+// A Source spring on a Box3D distance joint with a soft spring.
+class Box3DPhysicsSpring final : public IPhysicsSpring
+{
+public:
+	Box3DPhysicsSpring( Box3DPhysicsEnvironment *pEnvironment, Box3DPhysicsObject *pStart, Box3DPhysicsObject *pEnd, const springparams_t *pParams );
+	~Box3DPhysicsSpring() override;
+
+	void GetEndpoints( Vector *worldPositionStart, Vector *worldPositionEnd ) override;
+	void SetSpringConstant( float flSpringConstant ) override;
+	void SetSpringDamping( float flSpringDamping ) override;
+	void SetSpringLength( float flSpringLength ) override;
+	IPhysicsObject *GetStartObject() override;
+	IPhysicsObject *GetEndObject() override;
+
+	void NotifyObjectDestroyed( Box3DPhysicsObject *pObject );
+
+private:
+	void PushSpringSettings();
+
+	Box3DPhysicsEnvironment *m_pEnvironment;
+	Box3DPhysicsObject *m_pStart;
+	Box3DPhysicsObject *m_pEnd;
+	b3JointId m_JointId = b3_nullJointId;
+	b3Vec3 m_AnchorStart;	// body-local anchor points, for GetEndpoints
+	b3Vec3 m_AnchorEnd;
+	float m_flConstant;
+	float m_flDamping;
+};
+
 class Box3DPhysicsConstraintGroup final : public IPhysicsConstraintGroup
 {
 public:

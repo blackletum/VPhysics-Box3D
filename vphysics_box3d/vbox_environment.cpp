@@ -42,6 +42,8 @@ namespace
 
 Box3DPhysicsEnvironment::Box3DPhysicsEnvironment()
 {
+	m_PerformanceParams.Defaults();
+
 	b3WorldDef def = b3DefaultWorldDef();
 	// Only hit events for impacts >= 70 in/s (Source's collision-sound threshold).
 	def.hitEventThreshold = SourceToBox::Distance( 70.0f );
@@ -192,9 +194,11 @@ void Box3DPhysicsEnvironment::DestroyObject( IPhysicsObject* pObject )
 	}
 	for ( int i = 0; i < m_FluidControllers.Count(); i++ )
 		m_FluidControllers[ i ]->DetachObject( pBoxObject );
-	// Break constraints on this object so their getters can't return a freed pointer.
+	// Break constraints and springs on this object so their getters can't return a freed pointer.
 	for ( int i = 0; i < m_Constraints.Count(); i++ )
 		m_Constraints[ i ]->NotifyObjectDestroyed( pBoxObject );
+	for ( int i = 0; i < m_Springs.Count(); i++ )
+		m_Springs[ i ]->NotifyObjectDestroyed( pBoxObject );
 
 	m_ActiveObjects.FindAndRemove( pBoxObject );
 
@@ -227,17 +231,6 @@ void Box3DPhysicsEnvironment::DestroyFluidController( IPhysicsFluidController* p
 	Box3DPhysicsFluidController *pFluid = static_cast< Box3DPhysicsFluidController * >( pController );
 	m_FluidControllers.FindAndRemove( pFluid );
 	delete pFluid;
-}
-
-IPhysicsSpring* Box3DPhysicsEnvironment::CreateSpring( IPhysicsObject* pObjectStart, IPhysicsObject* pObjectEnd, springparams_t* pParams )
-{
-	Log_Stub( LOG_VBox3D );
-	return nullptr;
-}
-
-void Box3DPhysicsEnvironment::DestroySpring( IPhysicsSpring* )
-{
-	Log_Stub( LOG_VBox3D );
 }
 
 IPhysicsShadowController* Box3DPhysicsEnvironment::CreateShadowController( IPhysicsObject* pObject, bool allowTranslation, bool allowRotation )
@@ -636,12 +629,14 @@ void Box3DPhysicsEnvironment::SweepCollideable( const CPhysCollide* pCollide, co
 
 void Box3DPhysicsEnvironment::GetPerformanceSettings( physics_performanceparams_t* pOutput ) const
 {
-	Log_Stub( LOG_VBox3D );
+	if ( pOutput )
+		*pOutput = m_PerformanceParams;
 }
 
 void Box3DPhysicsEnvironment::SetPerformanceSettings( const physics_performanceparams_t* pSettings )
 {
-	Log_Stub( LOG_VBox3D );
+	if ( pSettings )
+		m_PerformanceParams = *pSettings;
 }
 
 void Box3DPhysicsEnvironment::ReadStats( physics_stats_t* pOutput )

@@ -7,6 +7,7 @@
 #pragma once
 
 #include "vbox_interface.h"
+#include "vphysics/performance.h"
 
 #include <functional>
 
@@ -17,6 +18,7 @@ class Box3DPhysicsPlayerController;
 class Box3DPhysicsFluidController;
 class Box3DPhysicsConstraint;
 class Box3DPhysicsConstraintGroup;
+class Box3DPhysicsSpring;
 
 class Box3DPhysicsEnvironment final : public IPhysicsEnvironment
 {
@@ -176,4 +178,6 @@ private:
 	CUtlVector< Box3DPhysicsPlayerController * > m_PlayerControllers;
 	CUtlVector< Box3DPhysicsFluidController * > m_FluidControllers;
 	CUtlVector< Box3DPhysicsConstraint * > m_Constraints;
+	CUtlVector< Box3DPhysicsSpring * > m_Springs;
+	physics_performanceparams_t m_PerformanceParams;
 };

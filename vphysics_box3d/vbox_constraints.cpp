@@ -470,3 +470,128 @@ void Box3DPhysicsEnvironment::DestroyConstraintGroup( IPhysicsConstraintGroup *p
 {
 	delete static_cast< Box3DPhysicsConstraintGroup * >( pGroup );
 }
+
+//-------------------------------------------------------------------------------------------------
+// Box3DPhysicsSpring
+//-------------------------------------------------------------------------------------------------
+
+Box3DPhysicsSpring::Box3DPhysicsSpring( Box3DPhysicsEnvironment *pEnvironment, Box3DPhysicsObject *pStart, Box3DPhysicsObject *pEnd, const springparams_t *pParams )
+	: m_pEnvironment( pEnvironment )
+	, m_pStart( pStart )
+	, m_pEnd( pEnd )
+	, m_flConstant( pParams->constant )
+	, m_flDamping( pParams->damping )
+{
+	const b3BodyId a = pStart->GetBodyID(), b = pEnd->GetBodyID();
+	if ( pParams->useLocalPositions )
+	{
+		m_AnchorStart = SourceToBox::Distance( pParams->startPosition );
+		m_AnchorEnd = SourceToBox::Distance( pParams->endPosition );
+	}
+	else
+	{
+		m_AnchorStart = WorldToLocalPoint( a, SourceToBox::Distance( pParams->startPosition ) );
+		m_AnchorEnd = WorldToLocalPoint( b, SourceToBox::Distance( pParams->endPosition ) );
+	}
+
+	b3DistanceJointDef def = b3DefaultDistanceJointDef();
+	def.base.bodyIdA = a;
+	def.base.bodyIdB = b;
+	def.base.localFrameA.p = m_AnchorStart;
+	def.base.localFrameB.p = m_AnchorEnd;
+	def.length = SourceToBox::Distance( pParams->naturalLength );
+	def.enableSpring = true;
+	m_JointId = b3CreateDistanceJoint( m_pEnvironment->GetWorldId(), &def );
+	PushSpringSettings();
+}
+
+Box3DPhysicsSpring::~Box3DPhysicsSpring()
+{
+	if ( b3Joint_IsValid( m_JointId ) )
+		b3DestroyJoint( m_JointId, true );
+}
+
+// Box3D springs are frequency-based: convert Source's stiffness/damping to hertz + ratio via the
+// effective mass (hertz = sqrt(k/m)/2pi).
+void Box3DPhysicsSpring::PushSpringSettings()
+{
+	if ( !b3Joint_IsValid( m_JointId ) || !m_pStart || !m_pEnd )
+		return;
+	const float flInvSum = b3Body_GetInverseMass( m_pStart->GetBodyID() ) + b3Body_GetInverseMass( m_pEnd->GetBodyID() );
+	const float flMass = flInvSum > 1e-9f ? 1.0f / flInvSum : 1.0f;
+	const float flK = Max( m_flConstant, 0.0f );
+	const float flHertz = flK > 0.0f ? sqrtf( flK / flMass ) / ( 2.0f * M_PI_F ) : 0.0f;
+	const float flDampingRatio = flK > 0.0f ? m_flDamping / ( 2.0f * sqrtf( flK * flMass ) ) : 1.0f;
+	b3DistanceJoint_SetSpringHertz( m_JointId, flHertz );
+	b3DistanceJoint_SetSpringDampingRatio( m_JointId, flDampingRatio );
+}
+
+void Box3DPhysicsSpring::GetEndpoints( Vector *worldPositionStart, Vector *worldPositionEnd )
+{
+	if ( worldPositionStart )
+	{
+		const b3WorldTransform wt = b3Body_GetTransform( m_pStart->GetBodyID() );
+		*worldPositionStart = BoxToSource::Distance( b3Add( b3ToVec3( wt.p ), b3RotateVector( wt.q, m_AnchorStart ) ) );
+	}
+	if ( worldPositionEnd )
+	{
+		const b3WorldTransform wt = b3Body_GetTransform( m_pEnd->GetBodyID() );
+		*worldPositionEnd = BoxToSource::Distance( b3Add( b3ToVec3( wt.p ), b3RotateVector( wt.q, m_AnchorEnd ) ) );
+	}
+}
+
+void Box3DPhysicsSpring::SetSpringConstant( float flSpringConstant )
+{
+	m_flConstant = flSpringConstant;
+	PushSpringSettings();
+	if ( m_pStart ) m_pStart->Wake();
+	if ( m_pEnd ) m_pEnd->Wake();
+}
+
+void Box3DPhysicsSpring::SetSpringDamping( float flSpringDamping )
+{
+	m_flDamping = flSpringDamping;
+	PushSpringSettings();
+	if ( m_pStart ) m_pStart->Wake();
+	if ( m_pEnd ) m_pEnd->Wake();
+}
+
+void Box3DPhysicsSpring::SetSpringLength( float flSpringLength )
+{
+	if ( b3Joint_IsValid( m_JointId ) )
+		b3DistanceJoint_SetLength( m_JointId, SourceToBox::Distance( flSpringLength ) );
+	if ( m_pStart ) m_pStart->Wake();
+	if ( m_pEnd ) m_pEnd->Wake();
+}
+
+IPhysicsObject *Box3DPhysicsSpring::GetStartObject()	{ return m_pStart; }
+IPhysicsObject *Box3DPhysicsSpring::GetEndObject()	{ return m_pEnd; }
+
+void Box3DPhysicsSpring::NotifyObjectDestroyed( Box3DPhysicsObject *pObject )
+{
+	if ( m_pStart != pObject && m_pEnd != pObject )
+		return;
+	if ( b3Joint_IsValid( m_JointId ) )
+		b3DestroyJoint( m_JointId, true );
+	m_JointId = b3_nullJointId;
+	if ( m_pStart == pObject ) m_pStart = nullptr;
+	if ( m_pEnd == pObject ) m_pEnd = nullptr;
+}
+
+IPhysicsSpring *Box3DPhysicsEnvironment::CreateSpring( IPhysicsObject *pObjectStart, IPhysicsObject *pObjectEnd, springparams_t *pParams )
+{
+	if ( !pObjectStart || !pObjectEnd || !pParams )
+		return nullptr;
+	Box3DPhysicsSpring *pSpring = new Box3DPhysicsSpring( this, static_cast< Box3DPhysicsObject * >( pObjectStart ), static_cast< Box3DPhysicsObject * >( pObjectEnd ), pParams );
+	m_Springs.AddToTail( pSpring );
+	return pSpring;
+}
+
+void Box3DPhysicsEnvironment::DestroySpring( IPhysicsSpring *pSpring )
+{
+	if ( !pSpring )
+		return;
+	Box3DPhysicsSpring *pBoxSpring = static_cast< Box3DPhysicsSpring * >( pSpring );
+	m_Springs.FindAndRemove( pBoxSpring );
+	delete pBoxSpring;
+}
