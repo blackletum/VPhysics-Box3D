@@ -24,7 +24,7 @@ Work in progress!
 | Shadow controllers (NPCs, doors) | ✔️ | ✔️ |
 | Save / restore | ✔️ | ❌ |
 | Portal support | ✔️ | ❌ |
-| Per-object no-collide callbacks | ✔️ | ❌ |
+| Per-object no-collide callbacks | ✔️ | ✔️ |
 | Crash-resistant solver | ✔️ | ✔️ |
 | Thousands of objects without lag | ✔️ | ✔️ |
 | Multithreaded | ✔️ | ✔️ |

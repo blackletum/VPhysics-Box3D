@@ -8,6 +8,7 @@
 
 #include "vbox_collide.h"
 #include "vbox_parse.h"
+#include "mathlib/polyhedron.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -319,8 +320,12 @@ CPhysConvex *Box3DPhysicsCollision::BBoxToConvex( const Vector &mins, const Vect
 
 CPhysConvex *Box3DPhysicsCollision::ConvexFromConvexPolyhedron( const CPolyhedron &ConvexPolyhedron )
 {
-	Log_Stub( LOG_VBox3D );
-	return nullptr;
+	CUtlVector< b3Vec3 > points;
+	points.SetCount( ConvexPolyhedron.iVertexCount );
+	for ( int i = 0; i < ConvexPolyhedron.iVertexCount; i++ )
+		points[ i ] = SourceToBox::Distance( ConvexPolyhedron.pVertices[ i ] );
+
+	return HullToConvex( b3CreateHull( points.Base(), ConvexPolyhedron.iVertexCount, kMaxHullVertices ) );
 }
 
 void Box3DPhysicsCollision::ConvexesFromConvexPolygon( const Vector &vPolyNormal, const Vector *pPoints, int iPointCount, CPhysConvex **pOutput )
@@ -1186,19 +1191,36 @@ unsigned int Box3DPhysicsCollision::ReadStat( int statID )
 
 float Box3DPhysicsCollision::CollideGetRadius( const CPhysCollide *pCollide )
 {
-	Log_Stub( LOG_VBox3D );
-	return 0.0f;
+	if ( !pCollide )
+		return 0.0f;
+	// Inscribed-sphere radius, approximated as half the smallest local AABB extent.
+	Vector mins, maxs;
+	CollideGetAABB( &mins, &maxs, pCollide, vec3_origin, vec3_angle );
+	const Vector ext = ( maxs - mins ) * 0.5f;
+	return Min( Min( ext.x, ext.y ), ext.z );
 }
 
 void *Box3DPhysicsCollision::VCollideAllocUserData( vcollide_t *pVCollide, size_t userDataSize )
 {
-	Log_Stub( LOG_VBox3D );
+#ifdef GAME_ASW_OR_NEWER
+	VCollideFreeUserData( pVCollide );
+	if ( userDataSize )
+		pVCollide->pUserData = malloc( userDataSize );
+	return pVCollide->pUserData;
+#else
 	return nullptr;
+#endif
 }
 
 void Box3DPhysicsCollision::VCollideFreeUserData( vcollide_t *pVCollide )
 {
-	Log_Stub( LOG_VBox3D );
+#ifdef GAME_ASW_OR_NEWER
+	if ( pVCollide->pUserData )
+	{
+		free( pVCollide->pUserData );
+		pVCollide->pUserData = nullptr;
+	}
+#endif
 }
 
 void Box3DPhysicsCollision::VCollideCheck( vcollide_t *pVCollide, const char *pName )
@@ -1208,10 +1230,8 @@ void Box3DPhysicsCollision::VCollideCheck( vcollide_t *pVCollide, const char *pN
 
 bool Box3DPhysicsCollision::TraceBoxAA( const Ray_t &ray, const CPhysCollide *pCollide, trace_t *ptr )
 {
-	Log_Stub( LOG_VBox3D );
-	if ( ptr )
-		ClearTrace( ptr );
-	return false;
+	TraceBox( ray, pCollide, vec3_origin, vec3_angle, ptr );
+	return true;
 }
 
 void Box3DPhysicsCollision::DuplicateAndScale( vcollide_t *pOut, const vcollide_t *pIn, float flScale )

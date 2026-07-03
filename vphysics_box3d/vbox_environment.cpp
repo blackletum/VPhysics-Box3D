@@ -38,6 +38,23 @@ namespace
 	// max(restitution) and sqrt(friction), which makes props far too bouncy and slightly too grippy.
 	float Box3DFrictionCombine( float a, uint64_t, float b, uint64_t )		{ return a * b; }
 	float Box3DRestitutionCombine( float a, uint64_t, float b, uint64_t )	{ return a * b; }
+
+	// Ask the game's solver whether two shapes' objects may collide (collision groups, no-collide, debris).
+	bool ShapesCollide( void *context, b3ShapeId shapeA, b3ShapeId shapeB )
+	{
+		IPhysicsCollisionSolver *pSolver = static_cast< Box3DPhysicsEnvironment * >( context )->GetCollisionSolver();
+		if ( !pSolver || !b3Shape_IsValid( shapeA ) || !b3Shape_IsValid( shapeB ) )
+			return true;
+		Box3DPhysicsObject *pA = static_cast< Box3DPhysicsObject * >( b3Body_GetUserData( b3Shape_GetBody( shapeA ) ) );
+		Box3DPhysicsObject *pB = static_cast< Box3DPhysicsObject * >( b3Body_GetUserData( b3Shape_GetBody( shapeB ) ) );
+		if ( !pA || !pB )
+			return true;
+		return pSolver->ShouldCollide( pA, pB, pA->GetGameData(), pB->GetGameData() ) != 0;
+	}
+
+	// Broadphase filter (new pairs) and pre-solve (existing pairs, so a runtime no-collide takes effect).
+	bool Box3DCustomFilter( b3ShapeId a, b3ShapeId b, void *ctx )				{ return ShapesCollide( ctx, a, b ); }
+	bool Box3DPreSolve( b3ShapeId a, b3ShapeId b, b3Pos, b3Vec3, void *ctx )	{ return ShapesCollide( ctx, a, b ); }
 }
 
 Box3DPhysicsEnvironment::Box3DPhysicsEnvironment()
@@ -59,6 +76,9 @@ Box3DPhysicsEnvironment::Box3DPhysicsEnvironment()
 	// Match IVP's product combine rule for both coefficients (not Box3D's max/sqrt defaults).
 	b3World_SetFrictionCallback( m_WorldId, Box3DFrictionCombine );
 	b3World_SetRestitutionCallback( m_WorldId, Box3DRestitutionCombine );
+	// Route the game's per-pair collision rules (ShouldCollide) into both the broadphase and the solver.
+	b3World_SetCustomFilterCallback( m_WorldId, Box3DCustomFilter, this );
+	b3World_SetPreSolveCallback( m_WorldId, Box3DPreSolve, this );
 }
 
 Box3DPhysicsEnvironment::~Box3DPhysicsEnvironment()
@@ -115,6 +135,9 @@ IPhysicsObject *Box3DPhysicsEnvironment::CreateObject( const CPhysCollide *pColl
 		b3ShapeDef shapeDef = b3DefaultShapeDef();
 		shapeDef.enableContactEvents = true;
 		shapeDef.enableHitEvents = true;
+		// Required for the ShouldCollide filter/pre-solve callbacks to fire.
+		shapeDef.enableCustomFiltering = true;
+		shapeDef.enablePreSolveEvents = true;
 		ApplyMaterialToShape( shapeDef, materialIndex );
 		for ( int i = 0; i < pCollisionModel->m_Convexes.Count(); i++ )
 		{
@@ -165,6 +188,8 @@ IPhysicsObject* Box3DPhysicsEnvironment::CreateSphereObject( float radius, int m
 	b3ShapeDef shapeDef = b3DefaultShapeDef();
 	shapeDef.enableContactEvents = true;
 	shapeDef.enableHitEvents = true;
+	shapeDef.enableCustomFiltering = true;
+	shapeDef.enablePreSolveEvents = true;
 	ApplyMaterialToShape( shapeDef, materialIndex );
 	b3Sphere sphere = { { 0.0f, 0.0f, 0.0f }, SourceToBox::Distance( radius ) };
 	b3CreateSphereShape( bodyId, &shapeDef, &sphere );
@@ -581,6 +606,11 @@ void Box3DPhysicsEnvironment::CleanupDeleteList()
 		DestroyObject( m_DeadObjects[ i ] );
 	m_DeadObjects.RemoveAll();
 	m_bDeleteQueueEnabled = bWasEnabled;
+
+	// Free collides that were deferred while their dead objects were still queued.
+	for ( int i = 0; i < m_DeadObjectCollides.Count(); i++ )
+		Box3DPhysicsCollision::GetInstance().DestroyCollide( m_DeadObjectCollides[ i ] );
+	m_DeadObjectCollides.RemoveAll();
 }
 
 void Box3DPhysicsEnvironment::EnableDeleteQueue( bool enable )
@@ -694,7 +724,9 @@ float Box3DPhysicsEnvironment::GetDeltaFrameTime( int maxTicks ) const
 
 void Box3DPhysicsEnvironment::ForceObjectsToSleep( IPhysicsObject** pList, int listCount )
 {
-	Log_Stub( LOG_VBox3D );
+	for ( int i = 0; i < listCount; i++ )
+		if ( pList[ i ] )
+			pList[ i ]->Sleep();
 }
 
 void Box3DPhysicsEnvironment::SetPredicted( bool bPredicted )
@@ -729,9 +761,19 @@ void Box3DPhysicsEnvironment::RestorePredictedSimulation()
 	Log_Stub( LOG_VBox3D );
 }
 
-void Box3DPhysicsEnvironment::DestroyCollideOnDeadObjectFlush( CPhysCollide* )
+void Box3DPhysicsEnvironment::DestroyCollideOnDeadObjectFlush( CPhysCollide* pCollide )
 {
-	Log_Stub( LOG_VBox3D );
+	// Defer the collide destroy if a queued-dead object still uses it; CleanupDeleteList frees it after.
+	for ( int i = 0; i < m_DeadObjects.Count(); i++ )
+	{
+		if ( m_DeadObjects[ i ]->GetCollide() == pCollide )
+		{
+			if ( m_DeadObjectCollides.Find( pCollide ) == m_DeadObjectCollides.InvalidIndex() )
+				m_DeadObjectCollides.AddToTail( pCollide );
+			return;
+		}
+	}
+	Box3DPhysicsCollision::GetInstance().DestroyCollide( pCollide );
 }
 
 #if defined( GAME_GMOD_64X )

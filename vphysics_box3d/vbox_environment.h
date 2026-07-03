@@ -146,6 +146,7 @@ public:
 	// read-back velocity to the same value so the game never sees a "crazy angular velocity".
 	float GetMaxAngularVelocity() const { return m_flMaxAngularVelocity; }
 	IPhysicsCollisionEvent *GetCollisionEvent() const { return m_pCollisionEvent; }
+	IPhysicsCollisionSolver *GetCollisionSolver() const { return m_pCollisionSolver; }
 	IPhysicsObject *CreateObject( const CPhysCollide *pCollisionModel, int materialIndex, const Vector &position, const QAngle &angles, objectparams_t *pParams, bool bStatic );
 
 private:
@@ -171,6 +172,7 @@ private:
 	CUtlVector< Box3DPhysicsObject * > m_Objects;
 	mutable CUtlVector< Box3DPhysicsObject * > m_ActiveObjects;
 	CUtlVector< Box3DPhysicsObject * > m_DeadObjects;
+	CUtlVector< CPhysCollide * > m_DeadObjectCollides;
 	bool m_bDeleteQueueEnabled = false;
 
 	CUtlVector< Box3DPhysicsShadowController * > m_ShadowControllers;
