@@ -39,6 +39,9 @@ public:
 	void SetGroup( Box3DPhysicsConstraintGroup *pGroup )	{ m_pGroup = pGroup; }
 	b3JointId GetJointId() const						{ return m_JointId; }
 
+	// A constrained object is being destroyed: break the joint and null the stale pointer.
+	void NotifyObjectDestroyed( Box3DPhysicsObject *pObject );
+
 private:
 	void DestroyJoint();
 

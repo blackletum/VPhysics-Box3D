@@ -92,6 +92,17 @@ void Box3DPhysicsConstraint::Deactivate()
 IPhysicsObject *Box3DPhysicsConstraint::GetReferenceObject() const	{ return m_pReference; }
 IPhysicsObject *Box3DPhysicsConstraint::GetAttachedObject() const	{ return m_pAttached; }
 
+void Box3DPhysicsConstraint::NotifyObjectDestroyed( Box3DPhysicsObject *pObject )
+{
+	if ( m_pReference != pObject && m_pAttached != pObject )
+		return;
+	DestroyJoint();
+	if ( m_pReference == pObject )
+		m_pReference = nullptr;
+	if ( m_pAttached == pObject )
+		m_pAttached = nullptr;
+}
+
 void Box3DPhysicsConstraint::SetLinearMotor( float speed, float maxLinearImpulse )
 {
 	if ( !b3Joint_IsValid( m_JointId ) || b3Joint_GetType( m_JointId ) != b3_prismaticJoint )

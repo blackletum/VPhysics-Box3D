@@ -10,6 +10,7 @@
 #include "vbox_object.h"
 #include "vbox_collide.h"
 #include "vbox_controllers.h"
+#include "vbox_constraints.h"
 #include "vbox_surfaceprops.h"
 
 #include "tier0/memdbgon.h"
@@ -191,6 +192,9 @@ void Box3DPhysicsEnvironment::DestroyObject( IPhysicsObject* pObject )
 	}
 	for ( int i = 0; i < m_FluidControllers.Count(); i++ )
 		m_FluidControllers[ i ]->DetachObject( pBoxObject );
+	// Break constraints on this object so their getters can't return a freed pointer.
+	for ( int i = 0; i < m_Constraints.Count(); i++ )
+		m_Constraints[ i ]->NotifyObjectDestroyed( pBoxObject );
 
 	m_ActiveObjects.FindAndRemove( pBoxObject );
 
