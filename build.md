@@ -1,39 +1,62 @@
 # Building Vox3D
 
-Vox3D builds inside a Source SDK tree with Valve's VPC, like Volt.
+## Prerequisites
 
-## Set up the tree
+- Git
+- CMake 3.25 or newer
+- Windows: Visual Studio 2022 with the "Desktop development with C++" workload
+- Linux: `ninja-build` and gcc (`gcc-multilib` / `g++-multilib` for 32-bit)
 
-Clone [mini-source-sdk](https://github.com/Joshua-Ashton/mini-source-sdk), pick a branch (`sdk2013-mp`, `sdk2013-sp`, `asw`), and clone this repo into `src` with submodules:
-
-```bash
-git clone https://github.com/Joshua-Ashton/mini-source-sdk.git
-cd mini-source-sdk/sdk2013-mp/src
-git clone --recursive https://github.com/Asphaltian/VPhysics-Box3D.git vphysics_box3d
-```
-
-mini-source-sdk is wired for Volt, not Vox3D. Add two lines to `src/vpc_scripts/default.vgc`, projects first:
-
-```
-$Include "vphysics_box3d\vpc_scripts\vbox3d_projects.vgc"
-$Include "vphysics_box3d\vpc_scripts\vbox3d_groups.vgc"
-```
-
-Everything below runs from `src`.
-
-## Windows
-
-Run `fix_registry.bat` once as admin, then generate the solution:
+## Get the code
 
 ```bash
-.\fix_registry.bat
-devtools\bin\vpc.exe +vox3d /define:GAME_SDK2013 /mksln vox3d.sln
+git clone --recursive https://github.com/Asphaltian/VPhysics-Box3D.git
+cd VPhysics-Box3D
 ```
 
-Build `vox3d.sln` in Visual Studio. Output lands in `game/bin`: `vphysics.dll` (a loader that picks the SSE2/SSE4.2/AVX2 variant per CPU) and the three `vphysics_box3d_*.dll`.
+If you already cloned without `--recursive`, pull the submodules:
 
-## Other targets
+```bash
+git submodule update --init --recursive
+```
 
-**Alien Swarm**: `asw` branch, `/define:GAME_ASW` instead. `compat/compat_asw.h` covers the interface gap.
+## Build
 
-**x64 and Garry's Mod**: mini-source-sdk's VPC can't emit x64. Use the full [source-sdk-2013](https://github.com/ValveSoftware/source-sdk-2013), wired the same way, plus `/define:VBOX_FULL_SDK`. GMod also needs `/define:GAME_GMOD` and CS:GO/GMod VPhysics + appframework headers, which aren't redistributable.
+> [!NOTE] 
+> Only Garry's Mod x64 is well tested. Linux is experimental and some variants don't build yet.
+
+Choose the preset for your game and architecture, configure, then build:
+
+```bash
+cmake --preset gmod-x64
+cmake --build --preset gmod-x64-Release
+```
+
+| Preset | Game | Arch |
+|:---|:---|:---:|
+| `gmod-x86` | Garry's Mod | x86 |
+| `gmod-x64` | Garry's Mod | x64 |
+| `gmod-linux-x86` | Garry's Mod (Linux) | x86 |
+| `gmod-linux-x64` | Garry's Mod (Linux) | x64 |
+| `sdk2013-mp` | Source SDK 2013 Multiplayer | x86 |
+| `sdk2013-sp` | Source SDK 2013 Singleplayer | x86 |
+| `asw` | Alien Swarm | x86 |
+
+Every preset has a `-Debug` and `-Release` build (e.g. `gmod-x64-Release`, `sdk2013-mp-Debug`). The result is `build/<preset>/bin/<config>/vphysics.dll` (`vphysics.so` on Linux).
+
+If you have a Visual Studio other than 2022, skip the preset and name your generator:
+
+```bash
+cmake -S . -B build/gmod-x64 -G "Visual Studio 18 2026" -A x64 -D VOX_SDK=gmod
+cmake --build build/gmod-x64 --config Release
+```
+
+## Install
+
+Back up the game's own `vphysics.dll`, then drop the one you built in its place. For 64-bit Garry's Mod:
+
+```
+<Steam>/steamapps/common/GarrysMod/bin/win64/vphysics.dll
+```
+
+Other builds go in the matching game's binary directory (`bin/` for 32-bit Garry's Mod, the mod's `bin/` for SDK 2013).
