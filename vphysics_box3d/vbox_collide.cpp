@@ -172,6 +172,13 @@ namespace ivp_compat
         CPhysConvex* pConvex = new CPhysConvex;
         pConvex->m_pHull = pHull;
         pConvex->m_nGameData = pLedge->client_data;
+
+        // Keep the raw ledge triangles + materials for ICollisionQuery / debug mesh.
+        pConvex->m_QueryVerts.CopyArray(verts.Base(), verts.Count());
+        pConvex->m_QueryMaterials.SetCount(pLedge->n_triangles);
+        for (int i = 0; i < pLedge->n_triangles; i++)
+            pConvex->m_QueryMaterials[i] = (uint8)pTriangles[i].material_index;
+
         return pConvex;
     }
 
@@ -1151,15 +1158,84 @@ void Box3DPhysicsCollision::VPhysicsKeyParserDestroy(IVPhysicsKeyParser* pParser
     delete pParser;
 }
 
+// Triangle list (3 verts each, Source units) for engine->DebugDrawPhysCollide / vcollide_wireframe.
 int Box3DPhysicsCollision::CreateDebugMesh(CPhysCollide const* pCollisionModel, Vector** outVerts)
 {
-    Log_Stub(LOG_VBox3D);
-    return 0;
+    if (!outVerts)
+        return 0;
+    *outVerts = nullptr;
+    if (!pCollisionModel)
+        return 0;
+
+    CUtlVector<Vector> verts;
+
+    for (int c = 0; c < pCollisionModel->m_Convexes.Count(); c++)
+    {
+        const CPhysConvex* pConvex = pCollisionModel->m_Convexes[c];
+        if (!pConvex)
+            continue;
+
+        if (pConvex->m_QueryVerts.Count() > 0)
+        {
+            for (int i = 0; i < pConvex->m_QueryVerts.Count(); i++)
+                verts.AddToTail(BoxToSource::Distance(pConvex->m_QueryVerts[i]));
+        }
+        else if (pConvex->m_pHull)
+        {
+            // Runtime convex: triangulate hull faces.
+            const b3HullData* pHull = pConvex->m_pHull;
+            const b3Vec3* pPoints = b3GetHullPoints(pHull);
+            const b3HullFace* pFaces = b3GetHullFaces(pHull);
+            const b3HullHalfEdge* pEdges = b3GetHullEdges(pHull);
+
+            for (int f = 0; f < pHull->faceCount; f++)
+            {
+                CUtlVector<int> loop;
+                const uint8_t start = pFaces[f].edge;
+                uint8_t e = start;
+                do
+                {
+                    loop.AddToTail(pEdges[e].origin);
+                    e = pEdges[e].next;
+                } while (e != start && loop.Count() < 256);
+
+                for (int k = 1; k + 1 < loop.Count(); k++)
+                {
+                    verts.AddToTail(BoxToSource::Distance(pPoints[loop[0]]));
+                    verts.AddToTail(BoxToSource::Distance(pPoints[loop[k]]));
+                    verts.AddToTail(BoxToSource::Distance(pPoints[loop[k + 1]]));
+                }
+            }
+        }
+    }
+
+    if (pCollisionModel->m_pMesh)
+    {
+        const b3MeshData* pMesh = pCollisionModel->m_pMesh;
+        const b3Vec3* pMeshVerts = b3GetMeshVertices(pMesh);
+        const b3MeshTriangle* pTris = b3GetMeshTriangles(pMesh);
+        for (int t = 0; t < pMesh->triangleCount; t++)
+        {
+            verts.AddToTail(BoxToSource::Distance(pMeshVerts[pTris[t].index1]));
+            verts.AddToTail(BoxToSource::Distance(pMeshVerts[pTris[t].index2]));
+            verts.AddToTail(BoxToSource::Distance(pMeshVerts[pTris[t].index3]));
+        }
+    }
+
+    const int nCount = verts.Count();
+    if (nCount == 0)
+        return 0;
+
+    Vector* pOut = new Vector[nCount];
+    for (int i = 0; i < nCount; i++)
+        pOut[i] = verts[i];
+    *outVerts = pOut;
+    return nCount;
 }
 
 void Box3DPhysicsCollision::DestroyDebugMesh(int vertCount, Vector* outVerts)
 {
-    Log_Stub(LOG_VBox3D);
+    delete[] outVerts;
 }
 
 namespace
@@ -1181,8 +1257,20 @@ namespace
                 info.triStart = m_Materials.Count();
                 info.triCount = 0;
 
-                if (pConvex && pConvex->m_pHull)
+                if (pConvex && pConvex->m_QueryMaterials.Count() > 0)
                 {
+                    for (int t = 0; t < pConvex->m_QueryMaterials.Count(); t++)
+                    {
+                        m_Verts.AddToTail(BoxToSource::Distance(pConvex->m_QueryVerts[t * 3 + 0]));
+                        m_Verts.AddToTail(BoxToSource::Distance(pConvex->m_QueryVerts[t * 3 + 1]));
+                        m_Verts.AddToTail(BoxToSource::Distance(pConvex->m_QueryVerts[t * 3 + 2]));
+                        m_Materials.AddToTail(pConvex->m_QueryMaterials[t]);
+                        info.triCount++;
+                    }
+                }
+                else if (pConvex && pConvex->m_pHull)
+                {
+                    // Runtime convex: triangulate hull faces.
                     const b3HullData* pHull = pConvex->m_pHull;
                     const b3Vec3* pPoints = b3GetHullPoints(pHull);
                     const b3HullFace* pFaces = b3GetHullFaces(pHull);

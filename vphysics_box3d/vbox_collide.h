@@ -22,6 +22,10 @@ public:
     b3HullData* m_pSimHull = nullptr; // owned, inflated by the rest margin; lazily cooked
     unsigned int m_nGameData = 0;
 
+    // Raw IVP ledge triangles (Box3D space) + per-triangle surfaceprop, for ICollisionQuery / debug mesh.
+    CUtlVector<b3Vec3> m_QueryVerts;
+    CUtlVector<uint8> m_QueryMaterials;
+
     // Pristine hull grown by the mesh rest offset so props rest a hair proud of flat ground instead of
     // z-fighting it. Dynamic bodies only; traces keep m_pHull. Cooked on first use.
     const b3HullData* GetSimHull();
