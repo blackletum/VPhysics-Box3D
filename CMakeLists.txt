@@ -4,6 +4,8 @@ project(VPhysicsBox3D LANGUAGES C CXX)
 set(VOX_SDK "" CACHE STRING "mini-source-sdk variant: gmod, sdk2013-mp, sdk2013-sp, asw")
 set_property(CACHE VOX_SDK PROPERTY STRINGS gmod sdk2013-mp sdk2013-sp asw)
 
+option(VOX_DEDICATED "Build for a Linux dedicated server" OFF)
+
 if(NOT VOX_SDK)
     message(FATAL_ERROR
         "VOX_SDK is unset. Configure with a preset from CMakePresets.json, "
@@ -28,7 +30,11 @@ if(CMAKE_SIZEOF_VOID_P EQUAL 8)
 else()
     set(VOX_ARCH x86)
 endif()
-message(STATUS "Vox3D: SDK '${VOX_SDK}', ${VOX_ARCH} (${CMAKE_GENERATOR})")
+set(_vox_variant "${VOX_ARCH}")
+if(VOX_DEDICATED)
+    string(APPEND _vox_variant ", dedicated")
+endif()
+message(STATUS "Vox3D: SDK '${VOX_SDK}', ${_vox_variant} (${CMAKE_GENERATOR})")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

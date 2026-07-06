@@ -80,6 +80,49 @@
                 "CMAKE_EXE_LINKER_FLAGS": "-m32",
                 "CMAKE_SHARED_LINKER_FLAGS": "-m32"
             }
+        },
+        {
+            "name": "sdk2013-mp-linux",
+            "displayName": "Source SDK 2013 MP (Linux x86)",
+            "inherits": "_ninja",
+            "cacheVariables": {
+                "VOX_SDK": "sdk2013-mp",
+                "CMAKE_C_FLAGS": "-m32",
+                "CMAKE_CXX_FLAGS": "-m32",
+                "CMAKE_EXE_LINKER_FLAGS": "-m32",
+                "CMAKE_SHARED_LINKER_FLAGS": "-m32"
+            }
+        },
+        {
+            "name": "sdk2013-sp-linux",
+            "displayName": "Source SDK 2013 SP (Linux x86)",
+            "inherits": "_ninja",
+            "cacheVariables": {
+                "VOX_SDK": "sdk2013-sp",
+                "CMAKE_C_FLAGS": "-m32",
+                "CMAKE_CXX_FLAGS": "-m32",
+                "CMAKE_EXE_LINKER_FLAGS": "-m32",
+                "CMAKE_SHARED_LINKER_FLAGS": "-m32"
+            }
+        },
+        {
+            "name": "gmod-linux-x64-dedicated",
+            "displayName": "Garry's Mod Dedicated Server (Linux x64)",
+            "inherits": "_ninja",
+            "cacheVariables": { "VOX_SDK": "gmod", "VOX_DEDICATED": "ON" }
+        },
+        {
+            "name": "gmod-linux-x86-dedicated",
+            "displayName": "Garry's Mod Dedicated Server (Linux x86)",
+            "inherits": "_ninja",
+            "cacheVariables": {
+                "VOX_SDK": "gmod",
+                "VOX_DEDICATED": "ON",
+                "CMAKE_C_FLAGS": "-m32",
+                "CMAKE_CXX_FLAGS": "-m32",
+                "CMAKE_EXE_LINKER_FLAGS": "-m32",
+                "CMAKE_SHARED_LINKER_FLAGS": "-m32"
+            }
         }
     ],
 
@@ -97,6 +140,14 @@
         { "name": "gmod-linux-x64-Debug",   "configurePreset": "gmod-linux-x64", "configuration": "Debug" },
         { "name": "gmod-linux-x64-Release", "configurePreset": "gmod-linux-x64", "configuration": "Release" },
         { "name": "gmod-linux-x86-Debug",   "configurePreset": "gmod-linux-x86", "configuration": "Debug" },
-        { "name": "gmod-linux-x86-Release", "configurePreset": "gmod-linux-x86", "configuration": "Release" }
+        { "name": "gmod-linux-x86-Release", "configurePreset": "gmod-linux-x86", "configuration": "Release" },
+        { "name": "sdk2013-mp-linux-Debug",   "configurePreset": "sdk2013-mp-linux", "configuration": "Debug" },
+        { "name": "sdk2013-mp-linux-Release", "configurePreset": "sdk2013-mp-linux", "configuration": "Release" },
+        { "name": "sdk2013-sp-linux-Debug",   "configurePreset": "sdk2013-sp-linux", "configuration": "Debug" },
+        { "name": "sdk2013-sp-linux-Release", "configurePreset": "sdk2013-sp-linux", "configuration": "Release" },
+        { "name": "gmod-linux-x64-dedicated-Debug",   "configurePreset": "gmod-linux-x64-dedicated", "configuration": "Debug" },
+        { "name": "gmod-linux-x64-dedicated-Release", "configurePreset": "gmod-linux-x64-dedicated", "configuration": "Release" },
+        { "name": "gmod-linux-x86-dedicated-Debug",   "configurePreset": "gmod-linux-x86-dedicated", "configuration": "Debug" },
+        { "name": "gmod-linux-x86-dedicated-Release", "configurePreset": "gmod-linux-x86-dedicated", "configuration": "Release" }
     ]
 }

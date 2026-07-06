@@ -40,9 +40,13 @@ Build status per CMake preset. Future support for macOS is unknown.
 | `gmod-x86` | ✔️ |  |
 | `gmod-linux-x86` | ✔️ |  |
 | `gmod-linux-x64` | ✔️ |  |
+| `gmod-linux-x86-dedicated` | ✔️ |  |
+| `gmod-linux-x64-dedicated` | ✔️ |  |
 | `sdk2013-mp` | ✔️ |  |
-| `sdk2013-sp` | ❌ |  |
-| `asw` | ❌ |  |
+| `sdk2013-mp-linux` | ✔️ |  |
+| `sdk2013-sp` | ✔️ |  |
+| `sdk2013-sp-linux` | ✔️ |  |
+| `asw` | ✔️ |  |
 
 To build, see: [build.md](build.md)
 

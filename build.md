@@ -22,8 +22,8 @@ git submodule update --init --recursive
 
 ## Build
 
-> [!NOTE] 
-> Only Garry's Mod x64 is well tested. Linux is experimental and some variants don't build yet.
+> [!NOTE]
+> Only Garry's Mod x64 is well tested in-game. All presets build, but the others are largely untested.
 
 Choose the preset for your game and architecture, configure, then build:
 
@@ -38,11 +38,17 @@ cmake --build --preset gmod-x64-Release
 | `gmod-x64` | Garry's Mod | x64 |
 | `gmod-linux-x86` | Garry's Mod (Linux) | x86 |
 | `gmod-linux-x64` | Garry's Mod (Linux) | x64 |
+| `gmod-linux-x86-dedicated` | Garry's Mod Dedicated Server (Linux) | x86 |
+| `gmod-linux-x64-dedicated` | Garry's Mod Dedicated Server (Linux) | x64 |
 | `sdk2013-mp` | Source SDK 2013 Multiplayer | x86 |
+| `sdk2013-mp-linux` | Source SDK 2013 Multiplayer (Linux) | x86 |
 | `sdk2013-sp` | Source SDK 2013 Singleplayer | x86 |
+| `sdk2013-sp-linux` | Source SDK 2013 Singleplayer (Linux) | x86 |
 | `asw` | Alien Swarm | x86 |
 
 Every preset has a `-Debug` and `-Release` build (e.g. `gmod-x64-Release`, `sdk2013-mp-Debug`). The result is `build/<preset>/bin/<config>/vphysics.dll` (`vphysics.so` on Linux).
+
+`-dedicated` presets link the server (`_srv`) runtime.
 
 If you have a Visual Studio other than 2022, skip the preset and name your generator:
 
@@ -59,4 +65,4 @@ Back up the game's own `vphysics.dll`, then drop the one you built in its place.
 <Steam>/steamapps/common/GarrysMod/bin/win64/vphysics.dll
 ```
 
-Other builds go in the matching game's binary directory (`bin/` for 32-bit Garry's Mod, the mod's `bin/` for SDK 2013).
+Other builds go in the matching game's binary directory (`bin/` for 32-bit Garry's Mod, the mod's `bin/` for SDK 2013, the dedicated server's `bin/` for a `-dedicated` build).

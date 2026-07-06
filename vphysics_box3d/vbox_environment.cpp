@@ -66,6 +66,16 @@ namespace
         return clamp(a * b, 0.0f, 1.0f);
     }
 
+    // ASW's GetCPUInformation() returns a value, not a pointer.
+    template<typename T> int Box3DPhysicalCores(const T* info)
+    {
+        return info->m_nPhysicalProcessors;
+    }
+    template<typename T> int Box3DPhysicalCores(const T& info)
+    {
+        return info.m_nPhysicalProcessors;
+    }
+
     // Self-contained reader-writer spinlock. tier0's CThreadSpinRWLock would've been used but its 64-bit Windows ctor is
     // out-of-line and its layout can mismatch this build, overflowing an adjacent global.
     class CacheRWLock
@@ -195,7 +205,7 @@ Box3DPhysicsEnvironment::Box3DPhysicsEnvironment()
     // Penetration push-out cap: gentler than Box3D's 3 m/s default, but not so low ragdoll limbs wedge.
     def.contactSpeed = SourceToBox::Distance(100.0f);
     // workerCount > 1 with no task callbacks runs Box3D's built-in scheduler; physical cores only, HT hurts.
-    def.workerCount = (uint32_t)clamp((int)GetCPUInformation()->m_nPhysicalProcessors, 1, B3_MAX_WORKERS);
+    def.workerCount = (uint32_t)clamp(Box3DPhysicalCores(GetCPUInformation()), 1, B3_MAX_WORKERS);
     m_WorldId = b3CreateWorld(&def);
 
     // Match IVP's product combine rule for both coefficients (not Box3D's max/sqrt defaults).
