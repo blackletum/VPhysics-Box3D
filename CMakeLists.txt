@@ -92,6 +92,7 @@ set(_box3d_sources
     mesh_contact.c
     motor_joint.c
     mover.c
+    name_cache.c
     parallel_for.c
     parallel_joint.c
     physics_world.c
