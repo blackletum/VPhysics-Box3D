@@ -743,10 +743,10 @@ void Box3DPhysicsObject::CalculateForceOffset(
         *centerForce = forceVector;
     if (centerTorque)
     {
-        Vector com;
-        com = BoxToSource::Distance(b3Body_GetWorldCenter(m_BodyId));
-        const Vector worldTorque = CrossProduct(worldPosition - com, forceVector);
-        WorldToLocalVector(centerTorque, worldTorque);
+        const b3Vec3 pv = SourceToBox::Distance(worldPosition);
+        const b3Pos posBox{ pv.x, pv.y, pv.z };
+        const b3Vec3 cross = b3Cross(b3SubPos(posBox, b3Body_GetWorldCenter(m_BodyId)), SourceToBox::Distance(forceVector));
+        WorldToLocalVector(centerTorque, BoxToSource::AngularImpulse(cross));
     }
 }
 

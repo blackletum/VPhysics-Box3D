@@ -15,6 +15,9 @@ set(_sources
     vbox_objectpairhash.cpp
     vbox_parse.cpp
     vbox_surfaceprops.cpp
+    vbox_controller_vehicle.cpp
+    vbox_controller_jeep.cpp
+    vbox_controller_airboat.cpp
     compat/box3d_msvc32_compat.c
 )
 
@@ -35,6 +38,9 @@ set(_headers
     vbox_parse.h
     vbox_surfaceprops.h
     vbox_util.h
+    vbox_controller_vehicle.h
+    vbox_controller_jeep.h
+    vbox_controller_airboat.h
     compat/branch_overrides.h
     compat/compat_asw.h
     compat/compat_sdk2013.h

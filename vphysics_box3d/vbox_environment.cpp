@@ -11,14 +11,18 @@
 #include "tier1/convar.h"
 #include "vbox_collide.h"
 #include "vbox_constraints.h"
+#include "vbox_controller_airboat.h"
 #include "vbox_controller_fluid.h"
+#include "vbox_controller_jeep.h"
 #include "vbox_controller_motion.h"
 #include "vbox_controller_player.h"
 #include "vbox_controller_shadow.h"
+#include "vbox_controller_vehicle.h"
 #include "vbox_object.h"
 #include "vbox_surfaceprops.h"
 
 #include <atomic>
+#include <cassert>
 
 #include "tier0/memdbgon.h"
 
@@ -34,11 +38,11 @@ static ConVar vbox_contact_speed(
 namespace
 {
     // Minimum time between collision events for the same object pair (IVP's deltaCollisionTime gate).
-    constexpr float kCollisionEventInterval = 0.2f;
+    static constexpr float kCollisionEventInterval = 0.2f;
 
     // Contacts penetrating deeper than this (in/s worth of push-out can't clear it) count as stuck, and the
     // game is asked to resolve them (ShouldSolvePenetration -> ragdoll self-solve / NPC push-out / disable).
-    constexpr float kPenetrationDepth = 2.0f;
+    static constexpr float kPenetrationDepth = 2.0f;
 
     // Apply a Source surface's friction/bounce/density to a shape. Box3D combines both shapes on contact.
     void ApplyMaterialToShape(b3ShapeDef& shapeDef, int materialIndex)
@@ -371,6 +375,8 @@ void Box3DPhysicsEnvironment::DestroyObject(IPhysicsObject* pObject)
     }
     for (int i = 0; i < m_FluidControllers.Count(); i++)
         m_FluidControllers[i]->DetachObject(pBoxObject);
+    for (int i = 0; i < m_VehicleControllers.Count(); i++)
+        m_VehicleControllers[i]->OnObjectDestroyed(pBoxObject);
     // Break constraints/springs on this object so their getters can't return a freed pointer, and report
     // ConstraintBroken like IVP (the game defers entity removal, so firing in-loop is safe).
     for (int i = 0; i < m_Constraints.Count(); i++)
@@ -466,13 +472,35 @@ void Box3DPhysicsEnvironment::DestroyMotionController(IPhysicsMotionController* 
 IPhysicsVehicleController* Box3DPhysicsEnvironment::CreateVehicleController(
     IPhysicsObject* pVehicleBodyObject, const vehicleparams_t& params, unsigned int nVehicleType, IPhysicsGameTrace* pGameTrace)
 {
-    Log_Stub(LOG_VBox3D);
-    return nullptr;
+    Box3DVehicleController* pController = nullptr;
+    switch (nVehicleType)
+    {
+        case VEHICLE_TYPE_AIRBOAT_RAYCAST:
+            pController = new Box3DVehicleAirboat(params, this, nVehicleType, pGameTrace);
+            break;
+        case VEHICLE_TYPE_CAR_WHEELS:
+        case VEHICLE_TYPE_CAR_RAYCAST:
+        case VEHICLE_TYPE_JETSKI_RAYCAST:
+        default:
+            pController = new Box3DVehicleJeep(params, this, nVehicleType, pGameTrace);
+            break;
+    }
+    pController->InitCarSystem(static_cast<Box3DPhysicsObject*>(pVehicleBodyObject));
+    m_VehicleControllers.AddToTail(pController);
+    return pController;
 }
 
-void Box3DPhysicsEnvironment::DestroyVehicleController(IPhysicsVehicleController*)
+void Box3DPhysicsEnvironment::DestroyVehicleController(IPhysicsVehicleController* pController)
 {
-    Log_Stub(LOG_VBox3D);
+    Box3DVehicleController* pVehicle = static_cast<Box3DVehicleController*>(pController);
+    if (m_VehicleControllers.FindAndRemove(pVehicle))
+    {
+        delete pVehicle;
+    }
+    else
+    {
+        assert(false && "DestroyVehicleController called with a controller not in the environment's list");
+    }
 }
 
 void Box3DPhysicsEnvironment::SetCollisionSolver(IPhysicsCollisionSolver* pSolver)
@@ -499,6 +527,8 @@ void Box3DPhysicsEnvironment::Simulate(float deltaTime)
         m_PlayerControllers[i]->OnPreSimulate(deltaTime);
     for (int i = 0; i < m_MotionControllers.Count(); i++)
         m_MotionControllers[i]->OnPreSimulate(deltaTime);
+    for (int i = 0; i < m_VehicleControllers.Count(); i++)
+        m_VehicleControllers[i]->OnPreSimulate(deltaTime);
     for (int i = 0; i < m_FluidControllers.Count(); i++)
         m_FluidControllers[i]->OnPreSimulate(deltaTime);
 
