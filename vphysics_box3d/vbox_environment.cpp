@@ -532,6 +532,10 @@ void Box3DPhysicsEnvironment::Simulate(float deltaTime)
     for (int i = 0; i < m_FluidControllers.Count(); i++)
         m_FluidControllers[i]->OnPreSimulate(deltaTime);
 
+    // IVP actuators run within the PSI: springs apply before the step.
+    for (int i = 0; i < m_Springs.Count(); i++)
+        m_Springs[i]->Simulate(deltaTime);
+
     // The solver overwrites velocities; the pre-step values are what impact damage measures against.
     for (int i = 0; i < m_Objects.Count(); i++)
         m_Objects[i]->SnapshotPreStepVelocity();
@@ -573,10 +577,10 @@ void Box3DPhysicsEnvironment::Simulate(float deltaTime)
     const b3BodyEvents events = b3World_GetBodyEvents(m_WorldId);
     m_ActiveObjects.RemoveAll();
 
-    // IVP clamps angular speed to PI/2 rad/tick (apply_velocity_limit); Box3D has no cap, so explosion
-    // gibs spin unbounded to an invalid transform and the engine deletes them. Clamp moved bodies, and
-    // share the limit so the object read-back (GetVelocity) clamps to the same value.
-    m_flMaxAngularVelocity = (3.14159265f * 0.5f) / deltaTime;
+    // IVP's apply_velocity_limit clamps to the game-set performance limit, NOT a hardcoded cap
+    // (spinning wheels exceed any fixed value); fall back to IVP's PI/2 per tick when unset.
+    m_flMaxAngularVelocity = m_PerformanceParams.maxAngularVelocity > 0.0f ? DEG2RAD(m_PerformanceParams.maxAngularVelocity)
+                                                                           : (3.14159265f * 0.5f) / deltaTime;
     for (int i = 0; i < events.moveCount; i++)
     {
         Box3DPhysicsObject* pObject = static_cast<Box3DPhysicsObject*>(events.moveEvents[i].userData);

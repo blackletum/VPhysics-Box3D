@@ -548,6 +548,52 @@ IPhysicsConstraint* Box3DPhysicsEnvironment::CreateRagdollConstraint(
     const float flRawTorque = Max(ragdoll.axes[0].torque, Max(ragdoll.axes[1].torque, ragdoll.axes[2].torque));
     const float flFriction = Max(0.05f, flRawTorque * (InchesToMetres * InchesToMetres));
 
+    // onlyAngularLimits (AdvBallsocket onlyrotation): rotation-only, translation stays free. Rigid
+    // swing + free twist = parallel joint; all axes rigid = motor joint (angular spring only).
+    if (ragdoll.onlyAngularLimits && flCone <= DEG2RAD(2.0f))
+    {
+        const bool bTwistFree = (ragdoll.axes[0].maxRotation - ragdoll.axes[0].minRotation) >= 359.0f;
+        const bool bTwistRigid = fabsf(ragdoll.axes[0].maxRotation - ragdoll.axes[0].minRotation) <= 2.0f;
+        if (bTwistFree)
+        {
+            // Parallel joint aligns the frame Z axes; Source twist is the constraint X axis.
+            const b3Quat qZtoX = b3ComputeQuatBetweenUnitVectors(b3Vec3_axisZ, b3Vec3_axisX);
+            auto buildBearing = [=]() {
+                b3ParallelJointDef def = b3DefaultParallelJointDef();
+                def.base.bodyIdA = ref;
+                def.base.bodyIdB = att;
+                def.base.localFrameA.p = frameRef.p;
+                def.base.localFrameA.q = b3MulQuat(frameRef.q, qZtoX);
+                def.base.localFrameB.p = frameAtt.p;
+                def.base.localFrameB.q = b3MulQuat(frameAtt.q, qZtoX);
+                def.hertz = 120.0f;
+                def.dampingRatio = 2.0f;
+                return b3CreateParallelJoint(world, &def);
+            };
+            Box3DPhysicsConstraint* pBearing = new Box3DPhysicsConstraint(this, pRef, pAtt);
+            pBearing->SetSaveInfo(kBox3DConstraint_Ragdoll, &ragdoll, sizeof(ragdoll));
+            return FinishConstraint(pBearing, pGroup, ragdoll.constraint, buildBearing);
+        }
+        if (bTwistRigid)
+        {
+            auto buildLock = [=]() {
+                b3MotorJointDef def = b3DefaultMotorJointDef();
+                def.base.bodyIdA = ref;
+                def.base.bodyIdB = att;
+                def.base.localFrameA = frameRef;
+                def.base.localFrameB = frameAtt;
+                // Linear spring stays off (hertz 0): rotation-only, like IVP.
+                def.angularHertz = 120.0f;
+                def.angularDampingRatio = 2.0f;
+                def.maxSpringTorque = FLT_MAX;
+                return b3CreateMotorJoint(world, &def);
+            };
+            Box3DPhysicsConstraint* pLock = new Box3DPhysicsConstraint(this, pRef, pAtt);
+            pLock->SetSaveInfo(kBox3DConstraint_Ragdoll, &ragdoll, sizeof(ragdoll));
+            return FinishConstraint(pLock, pGroup, ragdoll.constraint, buildLock);
+        }
+    }
+
     auto build = [=]() -> b3JointId {
         if (nDOF == 0)
         {
@@ -661,8 +707,11 @@ Box3DPhysicsSpring::Box3DPhysicsSpring(
     : m_pEnvironment(pEnvironment)
     , m_pStart(pStart)
     , m_pEnd(pEnd)
+    , m_flNaturalLen(SourceToBox::Distance(pParams->naturalLength))
     , m_flConstant(pParams->constant)
     , m_flDamping(pParams->damping)
+    , m_flRelativeDamping(pParams->relativeDamping)
+    , m_bOnlyStretch(pParams->onlyStretch)
 {
     const b3BodyId a = pStart->GetBodyID(), b = pEnd->GetBodyID();
     if (pParams->useLocalPositions)
@@ -675,37 +724,49 @@ Box3DPhysicsSpring::Box3DPhysicsSpring(
         m_AnchorStart = WorldToLocalPoint(a, SourceToBox::Distance(pParams->startPosition));
         m_AnchorEnd = WorldToLocalPoint(b, SourceToBox::Distance(pParams->endPosition));
     }
-
-    b3DistanceJointDef def = b3DefaultDistanceJointDef();
-    def.base.bodyIdA = a;
-    def.base.bodyIdB = b;
-    def.base.localFrameA.p = m_AnchorStart;
-    def.base.localFrameB.p = m_AnchorEnd;
-    def.length = SourceToBox::Distance(pParams->naturalLength);
-    def.enableSpring = true;
-    m_JointId = b3CreateDistanceJoint(m_pEnvironment->GetWorldId(), &def);
-    PushSpringSettings();
 }
 
 Box3DPhysicsSpring::~Box3DPhysicsSpring()
 {
-    if (b3Joint_IsValid(m_JointId))
-        b3DestroyJoint(m_JointId, true);
 }
 
-// Box3D springs are frequency-based: convert Source's stiffness/damping to hertz + ratio via the
-// effective mass (hertz = sqrt(k/m)/2pi).
-void Box3DPhysicsSpring::PushSpringSettings()
+// IVP_Actuator_Spring::do_simulation_controller: axial force (dlen - rest) * k - damp * closingSpeed,
+// plus rel_pos_damp on the full anchor relative velocity, applied at the anchors; onlyStretch gates it.
+void Box3DPhysicsSpring::Simulate(float dt)
 {
-    if (!b3Joint_IsValid(m_JointId) || !m_pStart || !m_pEnd)
+    if (!m_pStart || !m_pEnd || dt <= 0.0f)
         return;
-    const float flInvSum = b3Body_GetInverseMass(m_pStart->GetBodyID()) + b3Body_GetInverseMass(m_pEnd->GetBodyID());
-    const float flMass = flInvSum > 1e-9f ? 1.0f / flInvSum : 1.0f;
-    const float flK = Max(m_flConstant, 0.0f);
-    const float flHertz = flK > 0.0f ? sqrtf(flK / flMass) / (2.0f * M_PI_F) : 0.0f;
-    const float flDampingRatio = flK > 0.0f ? m_flDamping / (2.0f * sqrtf(flK * flMass)) : 1.0f;
-    b3DistanceJoint_SetSpringHertz(m_JointId, flHertz);
-    b3DistanceJoint_SetSpringDampingRatio(m_JointId, flDampingRatio);
+
+    const b3BodyId start = m_pStart->GetBodyID();
+    const b3BodyId end = m_pEnd->GetBodyID();
+    if (!b3Body_IsAwake(start) && !b3Body_IsAwake(end))
+        return;
+
+    const b3WorldTransform xfStart = b3Body_GetTransform(start);
+    const b3WorldTransform xfEnd = b3Body_GetTransform(end);
+    const b3Vec3 posStart = b3Add(b3ToVec3(xfStart.p), b3RotateVector(xfStart.q, m_AnchorStart));
+    const b3Vec3 posEnd = b3Add(b3ToVec3(xfEnd.p), b3RotateVector(xfEnd.q, m_AnchorEnd));
+
+    b3Vec3 dir = b3Sub(posStart, posEnd); // IVP: pos0 - pos1
+    const float flLen = b3Length(dir);
+    if (flLen < 1e-6f)
+        return;
+    dir = b3MulSV(1.0f / flLen, dir);
+
+    if (m_bOnlyStretch && flLen <= m_flNaturalLen)
+        return;
+
+    // Positive when the anchors approach each other.
+    const b3Vec3 vRel = b3Sub(
+        b3Body_GetWorldPointVelocity(end, b3ToPos(posEnd)), b3Body_GetWorldPointVelocity(start, b3ToPos(posStart)));
+    const float flDampSpeed = b3Dot(dir, vRel);
+    const float flForce = (flLen - m_flNaturalLen) * m_flConstant - m_flDamping * flDampSpeed;
+
+    // wake=false: IVP's async pushes only reach simulated (awake, unpinned) cores.
+    b3Vec3 impulse = b3MulSV(flForce * dt, dir);
+    impulse = b3Add(impulse, b3MulSV(-dt * m_flRelativeDamping, vRel));
+    b3Body_ApplyLinearImpulse(end, impulse, b3ToPos(posEnd), false);
+    b3Body_ApplyLinearImpulse(start, b3MulSV(-1.0f, impulse), b3ToPos(posStart), false);
 }
 
 void Box3DPhysicsSpring::GetEndpoints(Vector* worldPositionStart, Vector* worldPositionEnd)
@@ -725,7 +786,6 @@ void Box3DPhysicsSpring::GetEndpoints(Vector* worldPositionStart, Vector* worldP
 void Box3DPhysicsSpring::SetSpringConstant(float flSpringConstant)
 {
     m_flConstant = flSpringConstant;
-    PushSpringSettings();
     if (m_pStart)
         m_pStart->Wake();
     if (m_pEnd)
@@ -735,7 +795,6 @@ void Box3DPhysicsSpring::SetSpringConstant(float flSpringConstant)
 void Box3DPhysicsSpring::SetSpringDamping(float flSpringDamping)
 {
     m_flDamping = flSpringDamping;
-    PushSpringSettings();
     if (m_pStart)
         m_pStart->Wake();
     if (m_pEnd)
@@ -744,8 +803,7 @@ void Box3DPhysicsSpring::SetSpringDamping(float flSpringDamping)
 
 void Box3DPhysicsSpring::SetSpringLength(float flSpringLength)
 {
-    if (b3Joint_IsValid(m_JointId))
-        b3DistanceJoint_SetLength(m_JointId, SourceToBox::Distance(flSpringLength));
+    m_flNaturalLen = SourceToBox::Distance(flSpringLength);
     if (m_pStart)
         m_pStart->Wake();
     if (m_pEnd)
@@ -763,11 +821,6 @@ IPhysicsObject* Box3DPhysicsSpring::GetEndObject()
 
 void Box3DPhysicsSpring::NotifyObjectDestroyed(Box3DPhysicsObject* pObject)
 {
-    if (m_pStart != pObject && m_pEnd != pObject)
-        return;
-    if (b3Joint_IsValid(m_JointId))
-        b3DestroyJoint(m_JointId, true);
-    m_JointId = b3_nullJointId;
     if (m_pStart == pObject)
         m_pStart = nullptr;
     if (m_pEnd == pObject)

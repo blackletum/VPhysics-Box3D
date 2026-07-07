@@ -158,7 +158,8 @@ private:
     Box3DConstraintParams m_SaveParams{};
 };
 
-// A Source spring on a Box3D distance joint with a soft spring.
+// IVP_Actuator_Spring, ported per step. Force-based (F = k * stretch): a hertz-based joint spring
+// bakes the endpoint masses in at creation and detunes when a frozen endpoint is later unfrozen.
 class Box3DPhysicsSpring final : public IPhysicsSpring
 {
 public:
@@ -185,18 +186,20 @@ public:
         return m_SaveParams;
     }
 
-private:
-    void PushSpringSettings();
+    void Simulate(float dt);
 
+private:
     Box3DPhysicsEnvironment* m_pEnvironment;
     Box3DPhysicsObject* m_pStart;
     Box3DPhysicsObject* m_pEnd;
     springparams_t m_SaveParams = {};
-    b3JointId m_JointId = b3_nullJointId;
     b3Vec3 m_AnchorStart; // body-local anchor points, for GetEndpoints
     b3Vec3 m_AnchorEnd;
+    float m_flNaturalLen; // metres
     float m_flConstant;
     float m_flDamping;
+    float m_flRelativeDamping = 0.0f;
+    bool m_bOnlyStretch = false;
 };
 
 class Box3DPhysicsConstraintGroup final : public IPhysicsConstraintGroup
