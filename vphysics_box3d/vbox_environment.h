@@ -17,6 +17,7 @@ class Box3DPhysicsObject;
 class Box3DPhysicsShadowController;
 class Box3DPhysicsMotionController;
 class Box3DPhysicsPlayerController;
+class Box3DVehicleController;
 class Box3DPhysicsFluidController;
 class Box3DPhysicsConstraint;
 class Box3DPhysicsConstraintGroup;
@@ -248,6 +249,7 @@ private:
     CUtlVector<Box3DPhysicsShadowController*> m_ShadowControllers;
     CUtlVector<Box3DPhysicsMotionController*> m_MotionControllers;
     CUtlVector<Box3DPhysicsPlayerController*> m_PlayerControllers;
+    CUtlVector<Box3DVehicleController*> m_VehicleControllers;
     CUtlVector<Box3DPhysicsFluidController*> m_FluidControllers;
     CUtlVector<Box3DPhysicsConstraint*> m_Constraints;
     // Old (pre-save) pointer -> restored object/constraint, so a restored constraint can relink to its bodies.
