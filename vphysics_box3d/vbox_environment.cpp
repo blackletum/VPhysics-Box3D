@@ -296,14 +296,20 @@ IPhysicsObject* Box3DPhysicsEnvironment::CreateObject(
             b3CreateMeshShape(bodyId, &shapeDef, pCollisionModel->m_pMesh, b3Vec3{ 1.0f, 1.0f, 1.0f });
     }
 
-    if (!bStatic && pParams && pParams->massCenterOverride && *pParams->massCenterOverride != vec3_origin)
+    // The solid's authored mass center replaces the shape centroid; an explicit override beats both.
+    Vector vecMassCenter = pCollisionModel ? pCollisionModel->m_vecMassCenter : vec3_origin;
+    if (pParams && pParams->massCenterOverride && *pParams->massCenterOverride != vec3_origin)
+        vecMassCenter = *pParams->massCenterOverride;
+
+    if (!bStatic && vecMassCenter != vec3_origin)
     {
         b3MassData massData = b3Body_GetMassData(bodyId);
-        massData.center = SourceToBox::Distance(*pParams->massCenterOverride);
+        massData.center = SourceToBox::Distance(vecMassCenter);
         b3Body_SetMassData(bodyId, massData);
     }
 
     Box3DPhysicsObject* pObject = new Box3DPhysicsObject(bodyId, this, bStatic, materialIndex, pCollisionModel, pParams);
+    pObject->SetLocalMassCenter(vecMassCenter);
     m_Objects.AddToTail(pObject);
     return pObject;
 }

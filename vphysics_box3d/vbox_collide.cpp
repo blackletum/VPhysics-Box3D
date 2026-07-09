@@ -358,6 +358,10 @@ namespace ivp_compat
         GetAllIVPEdges(pFirstLedgeNode, ledges);
 
         CPhysCollide* pCollide = new CPhysCollide;
+
+        // Authored mass center (e.g. $masscenter on bikes); objects must spin about it, not the centroid.
+        pCollide->m_vecMassCenter = BoxToSource::Distance(
+            b3Vec3{ pSurface->mass_center[0], pSurface->mass_center[2], -pSurface->mass_center[1] });
         for (int i = 0; i < ledges.Count(); i++)
         {
             CPhysConvex* pConvex = IVPLedgeToConvex(ledges[i]);

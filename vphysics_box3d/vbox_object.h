@@ -228,6 +228,12 @@ public:
     void FillSaveState(Box3DSavedObjectState& s) const;
     void ApplyRestoreState(const Box3DSavedObjectState& s);
 
+    // Resolved creation-time mass center (authored .phy value or params override), reapplied on unfreeze.
+    void SetLocalMassCenter(const Vector& vecMassCenter)
+    {
+        m_vecLocalMassCenter = vecMassCenter;
+    }
+
     // Called each frame for bodies that moved, to fire game callbacks (M2+).
     void PostSimulation(float flTimestep)
     {
@@ -338,6 +344,7 @@ private:
     const CPhysCollide* m_pCollide = nullptr;
 
     Vector m_vecPreStepVelocity = vec3_origin;
+    Vector m_vecLocalMassCenter = vec3_origin;
     bool m_bLastAwake = false;
 
     b3BodyId m_BodyId = b3_nullBodyId;

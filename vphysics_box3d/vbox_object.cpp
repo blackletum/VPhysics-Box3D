@@ -201,7 +201,15 @@ void Box3DPhysicsObject::EnableMotion(bool enable)
     b3Body_SetType(m_BodyId, enable ? b3_dynamicBody : b3_staticBody);
     if (enable)
     {
+        // ApplyMassFromShapes resets to shape values; restore the game's mass and the creation mass center.
         b3Body_ApplyMassFromShapes(m_BodyId);
+        SetMass(m_flCachedMass);
+        if (m_vecLocalMassCenter != vec3_origin)
+        {
+            b3MassData massData = b3Body_GetMassData(m_BodyId);
+            massData.center = SourceToBox::Distance(m_vecLocalMassCenter);
+            b3Body_SetMassData(m_BodyId, massData);
+        }
         b3Body_SetAwake(m_BodyId, true);
     }
 }
