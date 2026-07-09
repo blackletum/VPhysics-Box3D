@@ -23,6 +23,25 @@ Box3DPhysicsShadowController::Box3DPhysicsShadowController(
     m_savedGravity = m_pObject->IsGravityEnabled();
     m_pObject->EnableGravity(false);
 
+    // A shadow the game won't let physics move must be immovable to the solver too, or constraints
+    // hanging off it (citadel pod on its tracktrain) fight the servo and pump energy.
+    if (!m_pObject->IsStatic())
+    {
+        const b3BodyId bodyId = m_pObject->GetBodyID();
+        m_savedMassData = b3Body_GetMassData(bodyId);
+        if (!m_allowTranslation)
+            m_pObject->SetMass(VPHYSICS_MAX_MASS);
+        if (!m_allowRotation)
+        {
+            // Written after the mass boost: SetMass rescales inertia, and anything past 1e15 overflows
+            // float in Box3D's inverse (0 x inf = NaN). Exactly 1e15 inverts to a clean zero.
+            b3MassData massData = b3Body_GetMassData(bodyId);
+            massData.inertia = b3Matrix3{};
+            massData.inertia.cx.x = massData.inertia.cy.y = massData.inertia.cz.z = 1e15f;
+            b3Body_SetMassData(bodyId, massData);
+        }
+    }
+
     m_savedMaterialIndex = m_pObject->GetMaterialIndex();
     UseShadowMaterial(true);
 
@@ -47,6 +66,13 @@ Box3DPhysicsShadowController::~Box3DPhysicsShadowController()
         m_pObject->EnableDrag(true);
         UseShadowMaterial(false);
         m_pObject->EnableGravity(m_savedGravity);
+
+        if (!m_pObject->IsStatic() && m_savedMassData.mass > 0.0f)
+        {
+            m_pObject->SetMass(m_savedMassData.mass);
+            if (b3Body_IsValid(bodyId))
+                b3Body_SetMassData(bodyId, m_savedMassData);
+        }
 
         if (b3Body_IsValid(bodyId))
             b3Body_SetAwake(bodyId, true);
