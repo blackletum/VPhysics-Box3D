@@ -94,6 +94,7 @@ void Box3DPhysicsConstraint::Activate()
         if (b3Joint_IsValid(m_JointId))
         {
             b3Joint_SetUserData(m_JointId, this);
+            b3Joint_SetCollideConnected(m_JointId, true);
             ApplyConstraintTuning();
         }
     }
