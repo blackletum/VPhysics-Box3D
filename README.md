@@ -39,7 +39,7 @@ Build status per CMake preset. Future support for macOS is unknown.
 | `gmod-x64` | ✔️ | ✔️ |
 | `gmod-x86` | ✔️ |  |
 | `gmod-linux-x86` | ✔️ |  |
-| `gmod-linux-x64` | ✔️ |  |
+| `gmod-linux-x64` | ✔️ | ✔️ |
 | `gmod-linux-x86-dedicated` | ✔️ |  |
 | `gmod-linux-x64-dedicated` | ✔️ |  |
 | `sdk2013-mp` | ✔️ |  |
